@@ -1,0 +1,16 @@
+xgboost
+scikit-learn
+statsmodels
+sqlalchemy
+schedule
+certifi
+elasticsearch
+elasticsearch-async
+pandas
+numpy
+flask
+requests
+imageio
+plotly
+seaborn
+matplotlib
