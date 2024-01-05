@@ -1,0 +1,422 @@
+def seq_train():
+        # To ignore specific warnings
+    warnings.filterwarnings("ignore", category=FutureWarning)
+
+    color_pal = sns.color_palette()
+    plt.style.use('fivethirtyeight')
+
+    start_time=1699900200000
+    end_time= 1701541800000
+    df=connectelk_retrive_data(app_id,start_time,end_time,source_index)
+    print(df.head())
+
+    df_unique_services=update_unique_services(df)
+
+    # vec_data, venc_data, max_correlations = classify_services(df)
+
+    # bkt_df = list_unique_services(vec_data, max_correlations)
+    # Sort the DataFrame by 'sid' in ascending order
+    df_unique_services= df_unique_services.sort_values(by='sid')
+
+    csv_file_path =os.path.join(project_path, training_path, 'all_services.csv')  # Provide the desired file path
+    df_unique_services.to_csv(csv_file_path, index=False)
+    print(f"DataFrame saved to: {csv_file_path}")
+
+    services=df_unique_services['sid']
+    services=[1020]
+    for sid in services[:1]:
+        # Train the model
+        filtered_df = df[df['sid'] == sid]
+        print(filtered_df.head())
+        filtered_df= filtered_df.sort_values(by='record_time')
+
+        csv_file_path = os.path.join(project_path, training_path,f'{sid}_train.csv')  # Provide the desired file path
+        filtered_df.to_csv(csv_file_path, index=False)
+        print(f"DataFrame saved to: {csv_file_path}")
+
+        # train_and_forecast_service(filtered_df, sid)
+        model_req_vol, model_resp_time, model_err_cnt = train_and_forecast_service(filtered_df, sid)
+        # service_name = service_name.replace('/', '_')
+        model_req_vol.save_model(os.path.join(project_path, models_path,f'{sid}_req_vol.json'))
+        model_resp_time.save_model(os.path.join(project_path, models_path,f'{sid}_resp_time.json'))
+        model_err_cnt.save_model(os.path.join(project_path, models_path,f'{sid}_err_cnt.json'))
+
+        if model_req_vol is not None:
+
+            pred_start_date='2023-12-11 11:00:00'
+            pred_end_date='2023-12-13 11:00:00'
+            freq='1H'
+            forecast=forecast_future(app_id,pred_start_date,pred_end_date,freq,filtered_df,sid)
+            bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,
+                                     elk_password)
+    # Use ThreadPoolExecutor for parallel processing
+
+        # Example response
+    response_data = {'status': 'success', 'message': 'Model trained successfully'}
+
+    # Return a valid HTTP response (JSON in this case)
+    return jsonify(response_data)
+
+ def seq_retrain():
+
+     # To ignore specific warnings
+     warnings.filterwarnings("ignore", category=FutureWarning)
+
+     color_pal = sns.color_palette()
+     plt.style.use('fivethirtyeight')
+     # app_id="753"
+
+     # date=datetime.now() - timedelta(days=1)
+     # start_time = date.timestamp() * 1000  # Convert to milliseconds
+     # end_time = (date + timedelta(days=1)).timestamp() * 1000
+     start_time= 1700179200000
+     end_time=1701801000000
+     print(start_time)
+     print(end_time)
+     df = connectelk_retrive_data(app_id, start_time, end_time,source_index)
+
+     if df is not None:
+         print(df.head())
+
+         daily_unq_services=update_unique_services(df)
+         daily_unq_services= daily_unq_services.sort_values(by='sid')
+         csv_file_path = os.path.join(project_path,training_path,'daily_services.csv') # Provide the desired file path
+         daily_unq_services.to_csv(csv_file_path, index=False)
+         print(f"DataFrame saved to: {csv_file_path}")
+         # daily_services=daily_unq_services['sid']
+         daily_services=[1020]
+         for sid in daily_services[:1]:
+             # RETrain the model
+             filtered_df = df[df['sid'] == sid]
+             print(filtered_df.head())
+             filtered_df= filtered_df.sort_values(by='record_time')
+
+             csv_file_path = os.path.join(project_path, retraining_path,f'{sid}_retrain.csv')  # Provide the desired file path
+             filtered_df.to_csv(csv_file_path, index=False)
+             print(f"DataFrame saved to: {csv_file_path}")
+
+             if not filtered_df.empty:
+                 print(filtered_df.head())
+                 # # service_name = service_name.replace('/', '_')
+                 # # check the model exists
+                 # model_req_vol = os.path.join(project_path, models_path,f'{sid}_req_vol.json')  # Update with the actual file names
+                 # model_resp_time = os.path.join(project_path, models_path,f'{sid}_resp_time.json')
+                 # model_err_cnt = os.path.join(project_path, models_path,f'{sid}_err_cnt.json')
+                 # if os.path.exists(model_req_vol) and os.path.exists(model_err_cnt) and os.path.exists(model_resp_time):
+                 #     model_req_vol, model_resp_time, model_err_cnt= grid_search_retrain_model(model_req_vol,
+                 #                                                                              model_err_cnt,
+                 #                                                                              model_resp_time,
+                 #                                                                              filtered_df, sid)
+                 #     # Save the updated model
+                 #     # service_name = service_name.replace('/', '_')
+                 #     model_req_vol.save_model(os.path.join(project_path, models_path,f'{sid}_req_vol.json'))
+                 #     model_resp_time.save_model(os.path.join(project_path, models_path,f'{sid}_resp_time.json'))
+                 #     model_err_cnt.save_model(os.path.join(project_path, models_path,f'{sid}_err_cnt.json'))
+
+                 pred_start_date='2023-12-11 11:00:00'
+                 pred_end_date='2023-12-13 11:00:00'
+                 freq='1H'
+                 forecast=forecast_future(app_id,pred_start_date,pred_end_date,freq,filtered_df,sid)
+                 # save_forecast_index(forecast,target_index)
+                 bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,
+                                          elk_password)
+
+
+                 # else:
+                 #         print(f"Model files not found for {sid}. Train new model first.")
+                 #         model_req_vol, model_resp_time, model_err_cnt = train_and_forecast_service(filtered_df, sid)
+                 #         model_req_vol.save_model(os.path.join(project_path, models_path,f'{sid}_req_vol.json'))
+                 #         model_resp_time.save_model(os.path.join(project_path, models_path,f'{sid}_resp_time.json'))
+                 #         model_err_cnt.save_model(os.path.join(project_path, models_path,f'{sid}_err_cnt.json'))
+                 #         if model_req_vol is not None:
+                 #
+                 #             pred_start_date='2023-12-11 11:00:00'
+                 #             pred_end_date='2023-12-22 11:00:00'
+                 #             freq='5T'
+                 #             forecast=forecast_future(app_id,pred_start_date,pred_end_date,freq,filtered_df,sid)
+                 #             # save_forecast_index(forecast,target_index)
+                 #             saven_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password)
+
+             # all_services_df = pd.read_csv(os.path.join(project_path, training_path, 'all_services.csv'))
+             # all_services = all_services_df['sid']
+             #
+             # for sid in all_services[:3]:
+             #     if sid not in daily_services[:3]:  # Avoid predicting for services already processed during retraining
+             #         # Load or check the existence of the model
+             #         model_req_vol = os.path.join(project_path, models_path, f'{sid}_req_vol.json')
+             #         model_err_cnt = os.path.join(project_path, models_path, f'{sid}_err_cnt.json')
+             #         model_resp_time = os.path.join(project_path, models_path, f'{sid}_resp_time.json')
+             #
+             #         if os.path.exists(model_req_vol) and os.path.exists(model_err_cnt) and os.path.exists(model_resp_time):
+             #             # Predict the future data set
+             #             pred_start_date = '2023-11-22 11:00:00'
+             #             pred_end_date = '2023-12-11 11:00:00'
+             #             freq = '5T'
+             #             # filtered_df = connectelk_retrive_data(app_id, start_time, end_time)  # Adjust start_time and end_time as needed
+             #             forecast_future(app_id, pred_start_date, pred_end_date, freq,sid)
+             #         else:
+             #             print(f"Model files not found for {sid}. Train new model first.")
+             else:
+                 print("No records found for retraining model")
+     # Example response
+     response_data = {'status': 'success', 'message': 'Model retrained successfully'}
+
+     # Return a valid HTTP response (JSON in this case)
+     return jsonify(response_data)
+
+
+
+
+def retrain_model(model_req_vol, model_err_cnt, model_resp_time, df,sid):
+    # Assuming df is the new data for retraining
+
+    df['record_time'] = pd.to_datetime(df['record_time'], unit='ms')
+
+    df.set_index('record_time', inplace=True)
+
+    # Set the index to the 'datetime' column
+    #     df.set_index('datetime', inplace=True)
+    df=remove_outliers(df)
+    train,test,df=train_test_splitdata(df)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+
+    tss = TimeSeriesSplit(n_splits=2)
+    df = df.sort_index()
+
+    rmses = []
+    maes=[]
+    mapes=[]
+    mases=[]
+    for train_idx, val_idx in tss.split(df):
+
+        req_vol_preds = []
+        resp_time_preds = []
+        err_cnt_preds=[]
+
+        train = df.iloc[train_idx]
+        test = df.iloc[val_idx]
+
+        train = create_features(train)
+        test = create_features(test)
+
+        FEATURES = ['dayofyear', 'hour', 'dayofweek', 'quarter', 'month','year']
+        # 'lag1','lag2','lag3']
+        REQ_VOL_TARGET = 'total_req_count'
+        RESP_TIME_TARGET = 'resp_time_sum'
+        ERR_CNT_TARGET = 'error_count'
+
+
+        # Add lags and create features
+        df = add_lags(df)  # Assuming you have a function to add lags
+        df = create_features(df)
+        FEATURES = ['dayofyear', 'hour', 'dayofweek', 'quarter', 'month','year']
+
+        new_X_req_vol = test[FEATURES]
+        new_y_req_vol = test[REQ_VOL_TARGET]
+        dnew_req_vol = xgb.DMatrix(new_X_req_vol, label=new_y_req_vol)
+        updated_model_req_vol = xgb.train({'objective': 'reg:squarederror'}, dnew_req_vol, xgb_model=model_req_vol, num_boost_round=10)
+
+
+        new_X_resp_time =test[FEATURES]
+        new_y_resp_time = test[RESP_TIME_TARGET]
+        dnew_resp_time = xgb.DMatrix(new_X_resp_time, label=new_y_resp_time)
+        updated_model_resp_time = xgb.train({'objective': 'reg:squarederror'}, dnew_resp_time, xgb_model=model_resp_time, num_boost_round=10)
+
+
+        new_X_err_cnt = test[FEATURES]
+        new_y_err_cnt = test[ERR_CNT_TARGET]
+        dnew_err_cnt = xgb.DMatrix(new_X_err_cnt, label=new_y_err_cnt)
+        updated_model_err_cnt = xgb.train({'objective': 'reg:squarederror'}, dnew_err_cnt, xgb_model=model_err_cnt, num_boost_round=10)
+
+
+        # # Convert the new data into DMatrix format
+        # dnew_req_vol = xgb.DMatrix(new_X_req_vol, label=new_y_req_vol)
+        # dnew_resp_time = xgb.DMatrix(new_X_resp_time, label=new_y_resp_time)
+        # dnew_err_cnt = xgb.DMatrix(new_X_err_cnt, label=new_y_err_cnt)
+        #
+        # param_req_vol = {
+        #     'objective': 'reg:squarederror',
+        #     'base_score':0.5, 'booster':'gbtree',
+        #     'n_estimators':800,
+        #     'max_depth':15,
+        #     'learning_rate':0.01
+        # }
+        # param_resp_time = {
+        #     'objective': 'reg:squarederror',
+        #     'base_score':0.5, 'booster':'gbtree',
+        #     'n_estimators':800,
+        #     'max_depth':15,
+        #     'learning_rate':0.01
+        # }
+        # param_err_cnt = {
+        #     'objective': 'reg:squarederror',
+        #     'base_score':0.5, 'booster':'gbtree',
+        #     'n_estimators':800,
+        #     'max_depth':15,
+        #     'learning_rate':0.2
+        # }
+        #
+        #
+        #
+        # updated_model_req_vol = xgb.train(param_req_vol, dnew_req_vol, xgb_model=model_req_vol)
+        # updated_model_resp_time = xgb.train(param_resp_time, dnew_resp_time, xgb_model=model_resp_time)
+        # updated_model_err_cnt = xgb.train(param_err_cnt, dnew_err_cnt, xgb_model=model_err_cnt)
+
+        # Print updated model parameters
+        print("Updated Model Parameters:")
+        print(updated_model_req_vol.get_dump()[0])
+
+        # Make predictions with the updated model
+
+        pred_req_vol = updated_model_req_vol.predict(dnew_req_vol)
+        pred_resp_time = updated_model_resp_time.predict(dnew_resp_time)
+        pred_err_cnt = updated_model_err_cnt.predict(dnew_err_cnt)
+
+
+
+        # test = test[:len(pred_req_vol)]
+        req_vol_rmse,resp_time_rmse,err_cnt_rmse,req_vol_mae,resp_time_mae,err_cnt_mae,req_vol_mape,resp_time_mape,err_cnt_mape,req_vol_mase,resp_time_mase,err_cnt_mase=evaluate_metrics(new_y_req_vol, pred_req_vol,new_y_resp_time, pred_resp_time,new_y_err_cnt, pred_err_cnt)
+
+        rmses.append((req_vol_rmse, resp_time_rmse,err_cnt_rmse))
+        maes.append((req_vol_mae,resp_time_mae,err_cnt_mae))
+        mapes.append((req_vol_mape,resp_time_mape,err_cnt_mape))
+        mases.append((req_vol_mase,resp_time_mase,err_cnt_mase))
+
+    # # You can further evaluate the performance on a test set or do additional checks
+    # req_vol_rmse = mean_squared_error(test['req_vol'], pred_req_vol, squared=False)
+    # print(f"Request Volume- RMSE: {req_vol_rmse}")
+    #
+    #
+    # resp_time_rmse = mean_squared_error(test['resp_time'], pred_resp_time, squared=False)
+    # print(f"Response time- RMSE: {resp_time_rmse}")
+    #
+    #
+    # err_cnt_rmse = mean_squared_error(test['err_cnt'], pred_err_cnt, squared=False)
+    # print(f"Error count- RMSE: {err_cnt_rmse}")
+    print_metrics(sid,rmses,'RMSE')
+    print_metrics(sid,maes,'MAE')
+    print_metrics(sid,mapes,'MAPE')
+    print_metrics(sid,mases,'MASE')
+
+
+    # Save the updated model
+    updated_model_req_vol.save_model(os.path.join(project_path, models_path,f'{sid}_req_vol.json'))
+    updated_model_resp_time.save_model(os.path.join(project_path, models_path,f'{sid}_resp_time.json'))
+    updated_model_err_cnt.save_model(os.path.join(project_path, models_path,f'{sid}_err_cnt.json'))
+
+
+    print(f"Retraining completed for service {sid}")
+    return updated_model_req_vol,updated_model_resp_time,updated_model_err_cnt
+
+def train_model(df):
+
+
+    tss = TimeSeriesSplit(n_splits=2)
+
+
+    # tss = TimeSeriesSplit(n_splits=3, gap=24) # this is used when training.produced good model
+    df = df.sort_index()
+
+    rmses = []
+    maes=[]
+    mapes=[]
+    mases=[]
+    for train_idx, val_idx in tss.split(df):
+
+        req_vol_preds = []
+        resp_time_preds = []
+        err_cnt_preds=[]
+
+
+        train = df.iloc[train_idx]
+        test = df.iloc[val_idx]
+
+        train = create_features(train)
+        test = create_features(test)
+
+        FEATURES = ['dayofyear', 'hour', 'dayofweek', 'quarter', 'month','year']
+        # 'lag1','lag2','lag3']
+        REQ_VOL_TARGET = 'total_req_count'
+        RESP_TIME_TARGET = 'resp_time_sum'
+        ERR_CNT_TARGET = 'error_count'
+
+        X_train = train[FEATURES]
+        y_train_req_vol = train[REQ_VOL_TARGET]
+        y_train_resp_time = train[RESP_TIME_TARGET]
+        y_train_err_cnt = train[ERR_CNT_TARGET]
+
+        X_test = test[FEATURES]
+        y_test_req_vol = test[REQ_VOL_TARGET]
+        y_test_resp_time = test[RESP_TIME_TARGET]
+        y_test_err_cnt = test[ERR_CNT_TARGET]
+
+        reg_req_vol  = xgb.XGBRegressor(base_score=0.5, booster='gbtree',
+                                        n_estimators=1000,
+                                        early_stopping_rounds=50,
+                                        objective='reg:squarederror',
+                                        max_depth=20,
+                                        learning_rate=0.01)
+
+
+        reg_resp_time = xgb.XGBRegressor(
+            base_score=0.5, booster='gbtree',
+            n_estimators=1000,
+            early_stopping_rounds=50,
+            objective='reg:squarederror',
+            max_depth=20,
+            learning_rate=0.01
+        )
+        reg_err_cnt = xgb.XGBRegressor(
+            base_score=0.5, booster='gbtree',
+            n_estimators=1000,
+            early_stopping_rounds=50,
+            objective='reg:squarederror',
+            max_depth=20,
+            learning_rate=0.01
+        )
+        fit_model(X_train,y_train_req_vol,y_train_resp_time,y_train_err_cnt,X_test,y_test_req_vol,y_test_resp_time,y_test_err_cnt,reg_req_vol,reg_resp_time,reg_err_cnt)
+        req_vol_pred,resp_time_pred,err_cnt_pred,req_vol_interval,resp_time_interval,err_cnt_interval= predict_test(X_test,FEATURES,reg_req_vol,reg_resp_time,reg_err_cnt)
+
+        # Append intervals to your lists
+        req_vol_preds.append((req_vol_pred, req_vol_interval))
+        resp_time_preds.append((resp_time_pred, resp_time_interval))
+        err_cnt_preds.append((err_cnt_pred, err_cnt_interval))
+
+        # Create a DataFrame to store predictions and intervals
+        predictions_df = pd.DataFrame({
+            'Datetime': X_test.index,
+            'Req_Vol_Pred': req_vol_pred,
+            'Resp_Time_Pred': resp_time_pred,
+            'Err_Cnt_Pred': err_cnt_pred,
+            'Req_Vol_Lower': req_vol_interval[0],
+            'Req_Vol_Upper': req_vol_interval[1],
+            'Req_Vol_Confidence_Score':req_vol_interval[2],
+            'Resp_Time_Lower': resp_time_interval[0],
+            'Resp_Time_Upper': resp_time_interval[1],
+            'Resp_Time_Confidence_Score':resp_time_interval[2],
+            'Err_Cnt_Lower': err_cnt_interval[0],
+            'Err_Cnt_Upper': err_cnt_interval[1],
+            'Err_cnt_Confidence_Score':err_cnt_interval[2]
+        })
+
+
+
+        # Save the DataFrame to a CSV file
+        # predictions_df.to_csv('range_predictions.csv', index=False)
+
+
+
+
+        req_vol_rmse,resp_time_rmse,err_cnt_rmse,req_vol_mae,resp_time_mae,err_cnt_mae,req_vol_mape,resp_time_mape,err_cnt_mape,req_vol_mase,resp_time_mase,err_cnt_mase=evaluate_metrics(y_test_req_vol, req_vol_pred,y_test_resp_time, resp_time_pred,y_test_err_cnt, err_cnt_pred)
+
+        rmses.append((req_vol_rmse, resp_time_rmse,err_cnt_rmse))
+        maes.append((req_vol_mae,resp_time_mae,err_cnt_mae))
+        mapes.append((req_vol_mape,resp_time_mape,err_cnt_mape))
+        mases.append((req_vol_mase,resp_time_mase,err_cnt_mase))
+
+    return reg_req_vol,reg_resp_time,reg_err_cnt,rmses,maes,mapes,mases
+    # return X_train,y_train_req_vol,y_train_resp_time,y_train_err_cnt,X_test,y_test_req_vol,y_test_resp_time,y_test_err_cnt,reg_req_vol,reg_resp_time,reg_err_cnt
+
+

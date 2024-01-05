@@ -14,3 +14,4 @@ imageio
 plotly
 seaborn
 matplotlib
+ydata-profiling
