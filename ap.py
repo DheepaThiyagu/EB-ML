@@ -60,7 +60,8 @@ elk_password = config.get('elasticsearch', 'password')
 
 app_id="753"
 source_index='fivemins_wm_oseb1decv1_753'
-target_index='test_ai_dheepa_13dec_01'
+target_index='test_ai_dheepa_9_Jan-24'
+training_index='fivemins_753'
 def train_model_with_grid_search(df):
     try:
         tss = TimeSeriesSplit(n_splits=2)
@@ -257,29 +258,155 @@ def predict_future_dataset(app_id,model_req_vol,model_resp_time,model_err_cnt,si
 
     future_w_features['Timestamp'] = future_w_features['datetime'].astype('int64') // 10**6
 
-    # Concatenate actual and predicted dataframes based on datetime
-    if filtered_df is not None:
-        print(filtered_df.head())
-        # Convert 'record_time' to milliseconds in the 'actual_df'
-        filtered_df['Timestamp'] = filtered_df.index.astype('int64') // 10**6
-        filtered_df['sid'] = filtered_df['sid'].astype(str)
-        future_w_features['sid']=future_w_features['sid'].astype(str)
-
-        # Merge the two DataFrames on 'record_time', 'app_id', and 'sid'
-        merged_df = pd.merge(future_w_features, filtered_df, how='outer', on=['Timestamp', 'app_id', 'sid'])
-    else:
-        merged_df = future_w_features
-
-    # Print or use the merged DataFrame as needed
-    print(merged_df)
+    # # Concatenate actual and predicted dataframes based on datetime
+    # if filtered_df is not None:
+    #     print(filtered_df.head())
+    #     # Convert 'record_time' to milliseconds in the 'actual_df'
+    #     filtered_df['Timestamp'] = filtered_df.index.astype('int64') // 10**6
+    #     filtered_df['sid'] = filtered_df['sid'].astype(str)
+    future_w_features['sid']=future_w_features['sid'].astype(str)
+    #
+    #     # Merge the two DataFrames on 'record_time', 'app_id', and 'sid'
+    #     merged_df = pd.merge(future_w_features, filtered_df, how='outer', on=['Timestamp', 'app_id', 'sid'])
+    # else:
+    #     merged_df = future_w_features
+    #
+    # # Print or use the merged DataFrame as needed
+    # print(merged_df)
 
     # plot_predictions(filtered_df,future_w_features,sid,freq)
+    print("returing the predicted values")
+    return future_w_features
+    # return merged_df
+#
 
-    # return future_w_features
-    return merged_df
+# def predict_future_dataset(app_id, model_req_vol, model_resp_time, model_err_cnt, sid, freq, start_date, end_date, filtered_df):
+#     # To ignore specific warnings
+#     warnings.filterwarnings("ignore", category=FutureWarning)
+#
+#     # Create future dataframe
+#     future = pd.date_range(start_date, end_date, freq=freq)  # freq is set for data granularity (5 mins or 1 hour)
+#     future_df = pd.DataFrame(index=future)
+#
+#     # Convert app_id to a pandas Series
+#     app_id_series = pd.Series(app_id)
+#
+#     future_df['datetime'] = future_df.index
+#     future_df['app_id'] = app_id_series.iloc[0]
+#     future_df['sid'] = sid
+#
+#     # Load models if available
+#     pred_vol, pred_resp, pred_err = None, None, None
+#     if model_req_vol:
+#         pred_vol = xgb.XGBRegressor()
+#         pred_vol.load_model(model_req_vol)
+#
+#     if model_resp_time:
+#         pred_resp = xgb.XGBRegressor()
+#         pred_resp.load_model(model_resp_time)
+#
+#     if model_err_cnt:
+#         pred_err = xgb.XGBRegressor()
+#         pred_err.load_model(model_err_cnt)
+#
+#     FEATURES = ['dayofyear', 'hour', 'dayofweek', 'quarter', 'month', 'year']
+#
+#     # Predict future data
+#     if pred_vol:
+#         future_df['pred_req_vol'] = pred_vol.predict(create_features(future_df)[FEATURES]).astype(int)
+#     else:
+#         future_df['pred_req_vol'] = None
+#
+#     if pred_resp:
+#         future_df['pred_resp_time'] = pred_resp.predict(create_features(future_df)[FEATURES])
+#     else:
+#         future_df['pred_resp_time'] = None
+#
+#     if pred_err:
+#         future_df['pred_err_cnt'] = pred_err.predict(create_features(future_df)[FEATURES]).astype(int)
+#     else:
+#         future_df['pred_err_cnt'] = None
+#
+#     # Calculate prediction intervals
+#     future_df = calculate_prediction_intervals(future_df)
+#
+#     # Merge with actual data (if available)
+#     if filtered_df is not None:
+#         merged_df = pd.merge(future_df, filtered_df, how='outer', on=['datetime', 'app_id', 'sid'])
+#     else:
+#         merged_df = future_df
+#
+#     # Print or use the merged DataFrame as needed
+#     print(merged_df)
+#
+#     return merged_df
+
+# def calculate_prediction_intervals(df):
+#     # Calculate prediction intervals for each predicted column
+#     for target in ['req_vol', 'resp_time', 'err_cnt']:
+#         lower_col = f'{target}_lower'
+#         upper_col = f'{target}_upper'
+#         conf_score_col = f'{target}_conf_score'
+#
+#         if f'pred_{target}' in df.columns:
+#             df[lower_col], df[upper_col], df[conf_score_col] = calculate_prediction_interval(df[f'pred_{target}'])
+#
+#     return df
+
+# def calculate_prediction_interval(predictions):
+#     # Custom logic to calculate prediction intervals and confidence scores
+#     # Replace this with your own implementation based on your requirements
+#     print("inside calculating interval")
+#     lower_bound = predictions - 0.1 * predictions
+#     upper_bound = predictions + 0.1 * predictions
+#     confidence_score = 0.9
+#
+#     return lower_bound, upper_bound, confidence_score
+
+def bulk_save_training_index(df, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password):
+    def get_headers():
+        headers = {}
+        if elk_username and elk_password:
+            headers['Authorization'] = 'Basic ' + get_secret()
+        return headers
+
+    def get_auth():
+        if elk_username and elk_password:
+            return HTTPBasicAuth(elk_username, elk_password)
+        else:
+            return None
+
+    def get_secret():
+        return elk_username + ':' + elk_password
+
+    def push_bulk_data_to_elk(bulkMsg):
+        endpoint = f'{elasticsearch_host}:{elasticsearch_port}/_bulk'
+        response = requests.post(endpoint, data=bulkMsg, auth=get_auth(), headers={'Content-Type': 'application/json'}, verify=False)
+        print(bulkMsg)
+        # Check for errors
+        if response.status_code == 200:
+            print(f"Documents indexed successfully.")
+        else:
+            print(f"Error indexing documents: {response.status_code}, {response.text}")
+    # Convert DataFrame to JSON with Timestamp objects as strings
+    df_json = df.to_json(orient='records', date_format='iso')
+
+    # Push data using bulk index
+    data_list = json.loads(df_json)
+
+    # Push data using bulk indexing
+    bulk_msg = '\n'.join([
+        # f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps({**row, "record_time": int(row["record_time"].timestamp() * 1000)})}'
+          f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps(row)}'
+        for row in data_list
+    ]) + '\n'
+    push_bulk_data_to_elk(bulk_msg)
 
 
+    # Refresh the index to make the documents available for search
+    requests.post(f'{elasticsearch_host}:{elasticsearch_port}/{target_index}/_refresh', auth=get_auth(), verify=False)
 
+    print(f"Training dataframe successfully pushed to Elasticsearch index: {target_index}")
 def bulk_save_forecast_index(df, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password):
     def get_headers():
         headers = {}
@@ -308,19 +435,13 @@ def bulk_save_forecast_index(df, target_index, elasticsearch_host, elasticsearch
     # Convert DataFrame to JSON with Timestamp objects as strings
     df_json = df.to_json(orient='records', date_format='iso')
 
-    # Push data using bulk indexing
-    print("====="+df_json)
-    # json_data = json.load(df_json)
-    # for data in json_data:
-    #     print("=========\n")
-    #     print(data)
-    #     print("\n")
-    # bulk_msg = '\n'.join(f'{{"index": {{"_index": "{target_index}"}}}}\n{row}' for row in df_json.split('\n') if row.strip()) + '\n'
+    # Push data using bulk index
     data_list = json.loads(df_json)
 
     # Push data using bulk indexing
     bulk_msg = '\n'.join([
-        f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps(row)}'
+        f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps({**row, "record_time": int(row["record_time"].timestamp() * 1000)})}'
+        # f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps(row)}'
         for row in data_list
     ]) + '\n'
     push_bulk_data_to_elk(bulk_msg)
@@ -332,78 +453,80 @@ def bulk_save_forecast_index(df, target_index, elasticsearch_host, elasticsearch
     print(f"Prediction dataframe successfully pushed to Elasticsearch index: {target_index}")
 
 
-def save_forecast_index(df, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password):
+# def save_forecast_index(df, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password):
+#
+#     def get_headers():
+#         headers = {}
+#         if elk_username and elk_password:
+#             headers['Authorization'] = 'Basic ' + get_secret()
+#
+#         print("Headers:", headers)
+#         return headers
+#     def get_auth():
+#         if elk_username and elk_password:
+#             return HTTPBasicAuth(elk_username, elk_password)
+#         else:
+#             return None
+#     def get_secret():
+#         return elk_username + ':' + elk_password
+#     def push_bulk_data_to_elk(bulkMsg):
+#         # print(endpoint)
+#         print(bulkMsg)
+#         # Elasticsearch endpoint
+#         endpoint = f'{elasticsearch_host}:{elasticsearch_port}/_bulk'
+#         response = requests.post(endpoint, data=bulkMsg, auth=get_auth(), headers={'Content-Type': 'application/json'}, verify=False)
+#
+#         # Check for errors
+#         if response.status_code == 200:
+#             print(f"Document indexed successfully till: {index + 1}.")
+#         else:
+#             print(f"Error indexing document {index + 1}: {response.status_code}, {response.text}")
+#
+#
+#     # elasticsearch_host = 'https://ec2-54-82-37-97.compute-1.amazonaws.com'
+#     # elasticsearch_port = 9200
+#     # target_index = 'test_ai_dheepa_13dec_01'
+#     # elk_username = 'admin'
+#     # elk_password = 'admin'
+#
+#     iteration = 0
+#     # df = df.fillna(0)  # Replace NaN with the string 'null'
+#
+#     # rowNum = 0
+#     bulk_msg = ""
+#     # Iterate through rows in the DataFrame and push each row as a document to Elasticsearch
+#     for index, row in df.iterrows():
+#         # rowNum += 1
+#         document = row.to_dict()
+#         if len(bulk_msg) == 0:
+#             bulk_msg += '{"index":{"_index":"' + target_index + '"}}\n'
+#
+#         bulk_msg += json.dumps(document, default=str) + '\n'
+#
+#         if len(bulk_msg) >= 500:
+#             push_bulk_data_to_elk(bulk_msg)
+#             bulk_msg = ""
+#     #     if rowNum%500 == 0:
+#     #         push_bulk_data_to_elk(bulkMsg)
+#     #         bulkMsg = ""
+#     #     else:
+#     #         bulkMsg = bulkMsg + '{"index":{"_index":"'+target_index+'"}'
+#     #         bulkMsg = bulkMsg + '\n'
+#     #         bulkMsg = bulkMsg + json.dumps(document)
+#     #         bulkMsg = bulkMsg + '\n'
+#     #
+#     #
+#     # if rowNum%500 != 0:
+#     if bulk_msg:
+#         push_bulk_data_to_elk(bulk_msg)
+#
+#
+#     # Refresh the index to make the documents available for search
+#     requests.post(f'{elasticsearch_host}:{elasticsearch_port}/{target_index}/_refresh', auth=get_auth(), verify=False)
+#
+#     print(f"Prediction dataframe successfully pushed to Elasticsearch index: {target_index}")
 
-    def get_headers():
-        headers = {}
-        if elk_username and elk_password:
-            headers['Authorization'] = 'Basic ' + get_secret()
 
-        print("Headers:", headers)
-        return headers
-    def get_auth():
-        if elk_username and elk_password:
-            return HTTPBasicAuth(elk_username, elk_password)
-        else:
-            return None
-    def get_secret():
-        return elk_username + ':' + elk_password
-    def push_bulk_data_to_elk(bulkMsg):
-        # print(endpoint)
-        print(bulkMsg)
-        # Elasticsearch endpoint
-        endpoint = f'{elasticsearch_host}:{elasticsearch_port}/_bulk'
-        response = requests.post(endpoint, data=bulkMsg, auth=get_auth(), headers={'Content-Type': 'application/json'}, verify=False)
-
-        # Check for errors
-        if response.status_code == 200:
-            print(f"Document indexed successfully till: {index + 1}.")
-        else:
-            print(f"Error indexing document {index + 1}: {response.status_code}, {response.text}")
-
-
-    # elasticsearch_host = 'https://ec2-54-82-37-97.compute-1.amazonaws.com'
-    # elasticsearch_port = 9200
-    # target_index = 'test_ai_dheepa_13dec_01'
-    # elk_username = 'admin'
-    # elk_password = 'admin'
-
-    iteration = 0
-    # df = df.fillna(0)  # Replace NaN with the string 'null'
-
-    # rowNum = 0
-    bulk_msg = ""
-    # Iterate through rows in the DataFrame and push each row as a document to Elasticsearch
-    for index, row in df.iterrows():
-        # rowNum += 1
-        document = row.to_dict()
-        if len(bulk_msg) == 0:
-            bulk_msg += '{"index":{"_index":"' + target_index + '"}}\n'
-
-        bulk_msg += json.dumps(document, default=str) + '\n'
-
-        if len(bulk_msg) >= 500:
-            push_bulk_data_to_elk(bulk_msg)
-            bulk_msg = ""
-    #     if rowNum%500 == 0:
-    #         push_bulk_data_to_elk(bulkMsg)
-    #         bulkMsg = ""
-    #     else:
-    #         bulkMsg = bulkMsg + '{"index":{"_index":"'+target_index+'"}'
-    #         bulkMsg = bulkMsg + '\n'
-    #         bulkMsg = bulkMsg + json.dumps(document)
-    #         bulkMsg = bulkMsg + '\n'
-    #
-    #
-    # if rowNum%500 != 0:
-    if bulk_msg:
-        push_bulk_data_to_elk(bulk_msg)
-
-
-    # Refresh the index to make the documents available for search
-    requests.post(f'{elasticsearch_host}:{elasticsearch_port}/{target_index}/_refresh', auth=get_auth(), verify=False)
-
-    print(f"Prediction dataframe successfully pushed to Elasticsearch index: {target_index}")
 
 
 def connectelk_retrive_data(app_id, start_time, end_time,source_index):
@@ -545,9 +668,9 @@ def connectelk_retrive_data(app_id, start_time, end_time,source_index):
 
         # Save the selected DataFrame to a CSV file
 
-        csv_file_path_selected = os.path.join(project_path, training_path,f'{source_index}.csv')
-        df_selected.to_csv(csv_file_path_selected, index=False)
-        print(f"Selected DataFrame saved to: {csv_file_path_selected}")
+        # csv_file_path_selected = os.path.join(project_path, training_path,f'{source_index}.csv')
+        # df_selected.to_csv(csv_file_path_selected, index=False)
+        # print(f"Selected DataFrame saved to: {csv_file_path_selected}")
         return df_selected
 
     except requests.exceptions.HTTPError as http_err:
@@ -865,16 +988,18 @@ def predict_test(X_test,FEATURES,reg_req_vol,reg_resp_time,reg_err_cnt):
     err_cnt_interval = calculate_prediction_interval(err_cnt_pred)
     return req_vol_pred,resp_time_pred,err_cnt_pred,req_vol_interval,resp_time_interval,err_cnt_interval
 
-def classify_services(data):
-    correlation_threshold = 0.7  # Set the correlation threshold to classify as LR
-    if 'error_count' in data.columns:
-        # Calculate the correlation between total count and error count for each service
+def classify_services(data,correlation_threshold,inp):
+      # Set the correlation threshold to classify as LR
+    if inp=='vol_err':
+        # if 'error_count' in data.columns:
+            # Calculate the correlation between total count and error count for each service
         correlations = data.groupby('sid')[
-                           ['total_req_count', 'error_count']].corr().iloc[1::2, 0]
-    # if 'resp_time' in data.columns:
-    #     # Calculate the correlation between total count and error count for each service
-    #     correlations = data.groupby('transactionname')[
-    #                        ['req_vol', 'resp_time']].corr().iloc[1::2, 0]
+                               ['total_req_count', 'error_count']].corr().iloc[1::2, 0]
+    if inp=='vol_resp':
+        # if 'resp_time' in data.columns:
+            # Calculate the correlation between total count and resp_time for each service
+        correlations = data.groupby('sid')[
+                               ['total_req_count', 'resp_time_sum']].corr().iloc[1::2, 0]
 
     # Determine LR and NLR services based on highest correlation
     highest_correlations = correlations.groupby('sid').max()
@@ -933,20 +1058,179 @@ def list_unique_services(data, max_correlations):
 
 def train_and_predict(filtered_df,sid):
     # train_and_forecast_service(filtered_df, sid)
-    model_req_vol, model_resp_time, model_err_cnt = train_and_forecast_service(filtered_df, sid)
+    model_req_vol, model_resp_time, model_err_cnt = train_service_model(filtered_df, sid)
     # service_name = service_name.replace('/', '_')
     model_req_vol.save_model(os.path.join(project_path, models_path,f'{sid}_req_vol.json'))
     model_resp_time.save_model(os.path.join(project_path, models_path,f'{sid}_resp_time.json'))
     model_err_cnt.save_model(os.path.join(project_path, models_path,f'{sid}_err_cnt.json'))
-
+    print(f"Models saved for {sid} ")
     if model_req_vol is not None:
-
-        pred_start_date='2023-12-11 11:00:00'
-        pred_end_date='2023-12-12 11:00:00'
+        print("inside forecast phase")
+        pred_start_date='2023-11-30 11:00:00'
+        pred_end_date='2023-12-01 11:00:00'
         freq='5T'
         forecast=forecast_future(app_id,pred_start_date,pred_end_date,freq,filtered_df,sid)
+        print("next going into bulk save")
         bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,
                                  elk_password)
+def save_csv(csv_name,df):
+    csv_file_path =os.path.join(project_path, training_path, csv_name)  # Provide the desired file path
+    df.to_csv(csv_file_path, index=False)
+    print(f"DataFrame saved to: {csv_file_path}")
+    logging.info(f"DataFrame saved to: {csv_file_path}")
+
+from concurrent.futures import ThreadPoolExecutor
+
+# @ap.route('/train')
+# def train():
+#     st_time = timer()
+#     # To ignore specific warnings
+#     warnings.filterwarnings("ignore", category=FutureWarning)
+#
+#     color_pal = sns.color_palette()
+#     plt.style.use('fivethirtyeight')
+#
+#     start_time = 1701282600000
+#     end_time = 1701369000000
+#     # df = connectelk_retrive_data(app_id, start_time, end_time, source_index)
+#     csv_file_path = os.path.join(project_path, training_path, f'{source_index}.csv')
+#
+#     df = pd.read_csv(csv_file_path)
+#
+#     print(df.head())
+#
+#     logging.info(df.head())
+#
+#     correlation_threshold = 0.7
+#
+#     vec_data, venc_data, max_correlations_vol_err = classify_services(df, correlation_threshold, 'vol_err')
+#     vrc_data, vrnc_data, max_correlations_vol_resp = classify_services(df, correlation_threshold, 'vol_resp')
+#
+#     df_corr_vol_err = list_unique_services(vec_data, max_correlations_vol_err)
+#     df_corr_vol_resp = list_unique_services(vec_data, max_correlations_vol_resp)
+#     save_csv('vol_err_corr_services.csv', df_corr_vol_err)  # Provide the desired file path
+#     save_csv('vol_resp_corr_services.csv', df_corr_vol_resp)  # Provide the desired file path
+#
+#     df_all_services = update_unique_services(df)
+#     # Sort the DataFrame by 'sid' in ascending order
+#     df_all_services = df_all_services.sort_values(by='sid')
+#     save_csv('all_services.csv', df_all_services)
+#
+#     # services_all = df_all_services['sid'].tolist()[:5]
+#     services_all = [1034,1036,1039,1051,1103,1059,1100]
+#
+#     services_err = df_corr_vol_err['sid'].tolist()[:5]
+#     services_resp = df_corr_vol_resp['sid'].tolist()[:5]
+#
+#
+#     # Use ThreadPoolExecutor for parallel processing
+#     with ThreadPoolExecutor(max_workers=3) as executor:
+#         # Train and predict for volume
+#         executor.map(train_and_predict_volume, [(df[df['sid'] == sid], sid) for sid in services_all])
+#
+#         # Train and predict for error count (only for correlated services)
+#         executor.map(train_and_predict_error_count, [(df[df['sid'] == sid], sid) for sid in services_err])
+#
+#         # Train and predict for response time (only for correlated services)
+#         executor.map(train_and_predict_response_time, [(df[df['sid'] == sid], sid) for sid in services_resp])
+#
+#     ed_time = timer()
+#     total_execution_time = ed_time - st_time
+#
+#     # Example response
+#     response_data = {'status': 'success', 'message': 'Model trained successfully',
+#                      'total_execution_time': total_execution_time}
+#     logging.info(response_data)
+#
+#     # Return a valid HTTP response (JSON in this case)
+#     return jsonify(response_data)
+#
+#
+# def train_and_predict_volume(args):
+#     filtered_df, sid = args
+#     train_and_predict_service(filtered_df, sid, 'req_vol')
+#
+#
+# def train_and_predict_error_count(args):
+#     filtered_df, sid = args
+#     train_and_predict_service(filtered_df, sid, 'err_cnt')
+#
+#
+# def train_and_predict_response_time(args):
+#     filtered_df, sid = args
+#     train_and_predict_service(filtered_df, sid, 'resp_time')
+#
+
+# def train_and_predict_service(filtered_df, sid, target):
+#     try:
+#         model_req_vol, model_resp_time, model_err_cnt = train_and_forecast_service(filtered_df, sid)
+#
+#         if model_req_vol is not None:
+#             # Save the volume model
+#             model_req_vol.save_model(os.path.join(project_path, models_path, f'{sid}_req_vol.json'))
+#             logging.info(f"Volume model for {sid} saved successfully.")
+#
+#             # Predict future volume data
+#             if target == 'req_vol':
+#                 pred_start_date = '2023-12-11 11:00:00'
+#                 pred_end_date = '2023-12-12 11:00:00'
+#                 freq = '5T'
+#                 forecast = forecast_future(app_id, pred_start_date, pred_end_date, freq, filtered_df, sid)
+#
+#                 # Save the volume forecast data
+#                 bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,
+#                                          elk_password)
+#                 logging.info(f"Volume forecast for {sid} saved successfully.")
+#
+#         if model_resp_time is not None and target == 'resp_time':
+#             # Save the response time model
+#             model_resp_time.save_model(os.path.join(project_path, models_path, f'{sid}_resp_time.json'))
+#             logging.info(f"Response time model for {sid} saved successfully.")
+#
+#             # Predict future response time data
+#             pred_start_date = '2023-12-11 11:00:00'
+#             pred_end_date = '2023-12-12 11:00:00'
+#             freq = '5T'
+#             forecast = forecast_future(app_id, pred_start_date, pred_end_date, freq, filtered_df, sid)
+#
+#             # Save the response time forecast data
+#             bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,
+#                                      elk_password)
+#             logging.info(f"Response time forecast for {sid} saved successfully.")
+#
+#         if model_err_cnt is not None and target == 'err_cnt':
+#             # Save the error count model
+#             model_err_cnt.save_model(os.path.join(project_path, models_path, f'{sid}_err_cnt.json'))
+#             logging.info(f"Error count model for {sid} saved successfully.")
+#
+#             # Predict future error count data
+#             pred_start_date = '2023-12-11 11:00:00'
+#             pred_end_date = '2023-12-12 11:00:00'
+#             freq = '5T'
+#             forecast = forecast_future(app_id, pred_start_date, pred_end_date, freq, filtered_df, sid)
+#
+#             # Save the error count forecast data
+#             bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,
+#                                      elk_password)
+#             logging.info(f"Error count forecast for {sid} saved successfully.")
+#
+#     except Exception as e:
+#         logging.error(f"Error processing service {sid}: {e}")
+
+# def forecast_future(app_id, start_date, end_date, freq, filtered_df, sid=None):
+#     model_req_vol, model_resp_time, model_err_cnt = load_input_model(sid)
+#
+#     if model_req_vol:
+#         actual_future_dataset = predict_future_dataset(app_id, model_req_vol, model_resp_time, model_err_cnt, sid, freq,
+#                                                        start_date, end_date, filtered_df)
+#         return actual_future_dataset
+#     else:
+#         print("Error: Unable to proceed with prediction. Check the availability of volume model.")
+#         return pd.DataFrame()
+
+# Rest of the code remains unchanged
+
+
 @ap.route('/train')
 def train():
     st_time=timer()
@@ -956,61 +1240,64 @@ def train():
     color_pal = sns.color_palette()
     plt.style.use('fivethirtyeight')
 
-    start_time=1701282600000
-    end_time= 1701369000000
+    # start_time=1701282600000
+    # end_time= 1701369000000
+    start_time=1701408600000
+    end_time= 1701495000000
     df=connectelk_retrive_data(app_id,start_time,end_time,source_index)
+    save_csv(f'{source_index}.csv',df)
     # csv_file_path = os.path.join(project_path, training_path,f'{source_index}.csv')
     #
     # df = pd.read_csv(csv_file_path)
-
+    bulk_save_training_index(df, training_index, elasticsearch_host, elasticsearch_port, elk_username,elk_password)
     print(df.head())
 
     logging.info(df.head())
 
+    # correlation_threshold = 0.7
+    #
+    # vec_data, venc_data, max_correlations_vol_err = classify_services(df,correlation_threshold,'vol_err')
+    # vrc_data, vrnc_data, max_correlations_vol_resp = classify_services(df,correlation_threshold,'vol_resp')
+    #
+    #
+    # df_corr_vol_err = list_unique_services(vec_data, max_correlations_vol_err)
+    # df_corr_vol_resp= list_unique_services(vec_data, max_correlations_vol_resp)
+    # save_csv( 'vol_err_corr_services.csv',df_corr_vol_err)# Provide the desired file path
+    # save_csv( 'vol_resp_corr_services.csv',df_corr_vol_resp)# Provide the desired file path
 
-    # df_unique_services=update_unique_services(df)
-    #
-    # # vec_data, venc_data, max_correlations = classify_services(df)
-    #
-    # # bkt_df = list_unique_services(vec_data, max_correlations)
-    # # Sort the DataFrame by 'sid' in ascending order
-    # df_unique_services= df_unique_services.sort_values(by='sid')
-    #
-    # csv_file_path =os.path.join(project_path, training_path, 'all_services.csv')  # Provide the desired file path
-    # df_unique_services.to_csv(csv_file_path, index=False)
-    # print(f"DataFrame saved to: {csv_file_path}")
-    # logging.info(f"DataFrame saved to: {csv_file_path}")
-    #
-    # services = df_unique_services['sid'].tolist()[:5]
-    #
-    # def train_model_for_service(sid):
-    #
-    #     # Train the model
-    #     filtered_df = df[df['sid'] == sid]
-    #     print(filtered_df.head())
-    #     filtered_df= filtered_df.sort_values(by='record_time')
-    #
-    #     csv_file_path = os.path.join(project_path, training_path,f'{sid}_train.csv')  # Provide the desired file path
-    #     filtered_df.to_csv(csv_file_path, index=False)
-    #     print(f"DataFrame saved to: {csv_file_path}")
-    #     logging.info(f"DataFrame saved to: {csv_file_path}")
-    #
-    #     train_and_predict(filtered_df,sid)
-    #
-    # # Use ThreadPoolExecutor for parallel processing
-    # with ThreadPoolExecutor(max_workers=8) as executor:
-    #     executor.map(train_model_for_service, services)
-    #
-    # ed_time=timer()
-    # total_execution_time = ed_time - st_time
-    #
-    # # Example response
+   #
+   #  df_all_services=update_unique_services(df)
+   # # Sort the DataFrame by 'sid' in ascending order
+   #  df_all_services= df_all_services.sort_values(by='sid')
+   #  save_csv('all_services.csv',df_all_services)
+   #
+   #  services = df_all_services['sid'].tolist()[:2]
+   #
+   #  def train_predict_for_service(sid):
+   #
+   #      # Train the model
+   #      filtered_df = df[df['sid'] == sid]
+   #      print(filtered_df.head())
+   #      filtered_df= filtered_df.sort_values(by='record_time')
+   #      save_csv(f'{sid}_train.csv',filtered_df)
+   #      train_and_predict(filtered_df,sid)
+   #
+   #  # Use ThreadPoolExecutor for parallel processing
+   #  with ThreadPoolExecutor(max_workers=2) as executor:
+   #      executor.map(train_predict_for_service, services)
+   #
+   #  ed_time=timer()
+   #  total_execution_time = ed_time - st_time
+
+    # Example response
     # response_data = {'status': 'success', 'message': 'Model trained successfully', 'total_execution_time': total_execution_time}
-    # logging.info(response_data)
-    #
-    # # Return a valid HTTP response (JSON in this case)
-    # return jsonify(response_data)
-    #
+    response_data = {'status': 'success', 'message': 'trainng data saved successfully'}
+
+    logging.info(response_data)
+
+    # Return a valid HTTP response (JSON in this case)
+    return jsonify(response_data)
+
 
 
 
@@ -1133,7 +1420,7 @@ def retrain():
     else:
         logging.error("Failed to load data.")
         return None
-def train_and_forecast_service(df,sid=None):
+def train_service_model(df,sid=None):
 
     # df['datetime'] = pd.to_datetime(df['datetime'], format="%d-%m-%Y %H:%M")
     # df['record_time'] = df['record_time'].astype(np.int64) // 10**6  # Convert nanoseconds to milliseconds
@@ -1304,14 +1591,17 @@ def grid_search_retrain_model(model_req_vol, model_err_cnt, model_resp_time, df,
 
 def forecast_future(app_id,start_date,end_date,freq,filtered_df,sid=None):
     model_req_vol,model_resp_time,model_err_cnt= load_input_model(sid)
+    print(f"Models loaded for {sid}")
     if model_req_vol and model_resp_time and model_err_cnt:
-        actual_future_dataset = predict_future_dataset(app_id, model_req_vol, model_resp_time, model_err_cnt, sid, freq, start_date, end_date, filtered_df)
+        print("going to predict")
+        future_dataset = predict_future_dataset(app_id, model_req_vol, model_resp_time, model_err_cnt, sid, freq, start_date, end_date, filtered_df)
+        print("saving to csv")
         csv_file_path = os.path.join(project_path, predictions_path,f'{sid}_predicted.csv')  # Provide the desired file path
-        actual_future_dataset.to_csv(csv_file_path, index=False)
-        print(f"DataFrame saved to: {csv_file_path}")
+        future_dataset.to_csv(csv_file_path, index=False)
+        print(f"Prediction DataFrame saved to: {csv_file_path}")
     else:
         print("Error: Unable to proceed with prediction. Check the availability of model files.")
-    return actual_future_dataset
+    return future_dataset
 
 
 if __name__ == "__main__":
