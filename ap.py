@@ -60,7 +60,7 @@ elk_password = config.get('elasticsearch', 'password')
 
 app_id="753"
 source_index='fivemins_wm_oseb1decv1_753'
-target_index='test_ai_dheepa_9_Jan-24'
+target_index='predictions_9_jan_by_script'
 training_index='fivemins_753'
 def train_model_with_grid_search(df):
     try:
@@ -432,26 +432,29 @@ def bulk_save_forecast_index(df, target_index, elasticsearch_host, elasticsearch
             print(f"Documents indexed successfully.")
         else:
             print(f"Error indexing documents: {response.status_code}, {response.text}")
-    # Convert DataFrame to JSON with Timestamp objects as strings
-    df_json = df.to_json(orient='records', date_format='iso')
+    try:
+        # Convert DataFrame to JSON with Timestamp objects as strings
+        df_json = df.to_json(orient='records', date_format='iso')
 
-    # Push data using bulk index
-    data_list = json.loads(df_json)
+        # Push data using bulk index
+        data_list = json.loads(df_json)
 
-    # Push data using bulk indexing
-    bulk_msg = '\n'.join([
-        f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps({**row, "record_time": int(row["record_time"].timestamp() * 1000)})}'
-        # f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps(row)}'
-        for row in data_list
-    ]) + '\n'
-    push_bulk_data_to_elk(bulk_msg)
+        # Push data using bulk indexing
+        bulk_msg = '\n'.join([
+            f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps({**row, "record_time": int(pd.to_datetime(datetime.now()).timestamp() * 1000)})}'
+            # f'{{"index": {{"_index": "{target_index}"}}}}\n{json.dumps(row)}'
+            for row in data_list
+        ]) + '\n'
+        push_bulk_data_to_elk(bulk_msg)
 
 
-    # Refresh the index to make the documents available for search
-    requests.post(f'{elasticsearch_host}:{elasticsearch_port}/{target_index}/_refresh', auth=get_auth(), verify=False)
+        # Refresh the index to make the documents available for search
+        requests.post(f'{elasticsearch_host}:{elasticsearch_port}/{target_index}/_refresh', auth=get_auth(), verify=False)
 
-    print(f"Prediction dataframe successfully pushed to Elasticsearch index: {target_index}")
-
+        print(f"Prediction dataframe successfully pushed to OPensearch index: {target_index}")
+    except Exception as e:
+        # Handle the exception (e.g., print an error message)
+        print(f"Error pushing data to OpenSearch index: {e}")
 
 # def save_forecast_index(df, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password):
 #
@@ -782,7 +785,7 @@ def connect_db():
 
     db_username = 'watermelon'
     db_password = 'watermelon123'
-    db_host = 'ec2-13-215-184-217.ap-southeast-1.compute.amazonaws.com'
+    db_host = 'ec2-13-215-184-217.appp-southeast-1.compute.amazonaws.com'
     db_port = '30003'
     db_name = 'error_budget_ai'
 
@@ -1066,8 +1069,8 @@ def train_and_predict(filtered_df,sid):
     print(f"Models saved for {sid} ")
     if model_req_vol is not None:
         print("inside forecast phase")
-        pred_start_date='2023-11-30 11:00:00'
-        pred_end_date='2023-12-01 11:00:00'
+        pred_start_date='2023-12-01 11:00:00'
+        pred_end_date='2023-12-20 11:00:00'
         freq='5T'
         forecast=forecast_future(app_id,pred_start_date,pred_end_date,freq,filtered_df,sid)
         print("next going into bulk save")
@@ -1081,7 +1084,7 @@ def save_csv(csv_name,df):
 
 from concurrent.futures import ThreadPoolExecutor
 
-# @ap.route('/train')
+# @appp.route('/train')
 # def train():
 #     st_time = timer()
 #     # To ignore specific warnings
@@ -1242,64 +1245,67 @@ def train():
 
     # start_time=1701282600000
     # end_time= 1701369000000
-    start_time=1701408600000
-    end_time= 1701495000000
-    df=connectelk_retrive_data(app_id,start_time,end_time,source_index)
-    save_csv(f'{source_index}.csv',df)
-    # csv_file_path = os.path.join(project_path, training_path,f'{source_index}.csv')
+    # start_time=1701408600000
+    # end_time= 1701495000000
+    # df=connectelk_retrive_data(app_id,start_time,end_time,source_index)
+    # save_csv(f'{source_index}.csv',df)
+    # csv_file_path = os.path.join(project_path, training_path,'output_selected_dataframe.csv')
+    csv_file_path = os.path.join(project_path, predictions_path,'1007_predicted.csv')
     #
-    # df = pd.read_csv(csv_file_path)
-    bulk_save_training_index(df, training_index, elasticsearch_host, elasticsearch_port, elk_username,elk_password)
+    df = pd.read_csv(csv_file_path)
+
+
+    bulk_save_forecast_index(df, target_index, elasticsearch_host, elasticsearch_port, elk_username,elk_password)
     print(df.head())
 
     logging.info(df.head())
 
-    # correlation_threshold = 0.7
-    #
-    # vec_data, venc_data, max_correlations_vol_err = classify_services(df,correlation_threshold,'vol_err')
-    # vrc_data, vrnc_data, max_correlations_vol_resp = classify_services(df,correlation_threshold,'vol_resp')
-    #
-    #
-    # df_corr_vol_err = list_unique_services(vec_data, max_correlations_vol_err)
-    # df_corr_vol_resp= list_unique_services(vec_data, max_correlations_vol_resp)
-    # save_csv( 'vol_err_corr_services.csv',df_corr_vol_err)# Provide the desired file path
-    # save_csv( 'vol_resp_corr_services.csv',df_corr_vol_resp)# Provide the desired file path
+    correlation_threshold = 0.7
 
-   #
-   #  df_all_services=update_unique_services(df)
-   # # Sort the DataFrame by 'sid' in ascending order
-   #  df_all_services= df_all_services.sort_values(by='sid')
-   #  save_csv('all_services.csv',df_all_services)
-   #
-   #  services = df_all_services['sid'].tolist()[:2]
-   #
-   #  def train_predict_for_service(sid):
-   #
-   #      # Train the model
-   #      filtered_df = df[df['sid'] == sid]
-   #      print(filtered_df.head())
-   #      filtered_df= filtered_df.sort_values(by='record_time')
-   #      save_csv(f'{sid}_train.csv',filtered_df)
-   #      train_and_predict(filtered_df,sid)
-   #
-   #  # Use ThreadPoolExecutor for parallel processing
-   #  with ThreadPoolExecutor(max_workers=2) as executor:
-   #      executor.map(train_predict_for_service, services)
-   #
-   #  ed_time=timer()
-   #  total_execution_time = ed_time - st_time
+    vec_data, venc_data, max_correlations_vol_err = classify_services(df,correlation_threshold,'vol_err')
+    vrc_data, vrnc_data, max_correlations_vol_resp = classify_services(df,correlation_threshold,'vol_resp')
+
+
+    df_corr_vol_err = list_unique_services(vec_data, max_correlations_vol_err)
+    df_corr_vol_resp= list_unique_services(vec_data, max_correlations_vol_resp)
+    save_csv( 'vol_err_corr_services.csv',df_corr_vol_err)# Provide the desired file path
+    save_csv( 'vol_resp_corr_services.csv',df_corr_vol_resp)# Provide the desired file path
+
+
+    df_all_services=update_unique_services(df)
+   # Sort the DataFrame by 'sid' in ascending order
+    df_all_services= df_all_services.sort_values(by='sid')
+    save_csv('all_services.csv',df_all_services)
+
+    services = df_all_services['sid'].tolist()[:1]
+
+    def train_predict_for_service(sid):
+
+        # Train the model
+        filtered_df = df[df['sid'] == sid]
+        print(filtered_df.head())
+        filtered_df= filtered_df.sort_values(by='record_time')
+        save_csv(f'{sid}_train.csv',filtered_df)
+        train_and_predict(filtered_df,sid)
+
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        executor.map(train_predict_for_service, services)
+
+    ed_time=timer()
+    total_execution_time = ed_time - st_time
 
     # Example response
-    # response_data = {'status': 'success', 'message': 'Model trained successfully', 'total_execution_time': total_execution_time}
-    response_data = {'status': 'success', 'message': 'trainng data saved successfully'}
-
-    logging.info(response_data)
-
-    # Return a valid HTTP response (JSON in this case)
+   #  response_data = {'status': 'success', 'message': 'Model trained successfully', 'total_execution_time': total_execution_time}
+    response_data = {'status': 'success', 'message': 'prediction data saved successfully'}
+   #
+   #  logging.info(response_data)
+   #
+   #  # Return a valid HTTP response (JSON in this case)
     return jsonify(response_data)
-
-
-
+   #
+   #
+   #
 
 @ap.route('/retrain')
 def retrain():

@@ -577,7 +577,7 @@ def connect_db():
 
     db_username = 'watermelon'
     db_password = 'watermelon123'
-    db_host = 'ec2-13-215-184-217.ap-southeast-1.compute.amazonaws.com'
+    db_host = 'ec2-13-215-184-217.appp-southeast-1.compute.amazonaws.com'
     db_port = '30003'
     db_name = 'error_budget_ai'
 
