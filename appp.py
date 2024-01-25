@@ -2128,14 +2128,14 @@ def train():
         executor.map(predict, df_all_services)
 
     total_execution_time = timer() - st_time
-
-    # Concatenate all forecasts into a single DataFrame
-    combined_forecasts = pd.concat(all_forecasts, ignore_index=True)
-
-    # Save the combined forecasts to a CSV file
-    combined_csv_path = os.path.join(project_path, predictions_path, 'combined_forecasts.csv')
-    combined_forecasts.to_csv(combined_csv_path, index=False)
-    print(f"Combined Forecast CSV saved to: {combined_csv_path}")
+    #
+    # # Concatenate all forecasts into a single DataFrame
+    # combined_forecasts = pd.concat(all_forecasts, ignore_index=True)
+    #
+    # # Save the combined forecasts to a CSV file
+    # combined_csv_path = os.path.join(project_path, predictions_path, 'combined_forecasts.csv')
+    # combined_forecasts.to_csv(combined_csv_path, index=False)
+    # print(f"Combined Forecast CSV saved to: {combined_csv_path}")
 
     response_data = {'status': 'success', 'message': 'Model trained and prediction saved successfully',
                      'total_execution_time': total_execution_time}
@@ -2290,14 +2290,14 @@ def retrain():
         executor.map(predict, df_all_services)
 
     total_execution_time = timer() - st_time
-
-    # Concatenate all forecasts into a single DataFrame
-    combined_forecasts = pd.concat(all_forecasts, ignore_index=True)
-
-    # Save the combined forecasts to a CSV file
-    combined_csv_path = os.path.join(project_path, predictions_path, 'retrained_combined_forecasts.csv')
-    combined_forecasts.to_csv(combined_csv_path, index=False)
-    print(f"Combined Forecast CSV saved to: {combined_csv_path}")
+    #
+    # # Concatenate all forecasts into a single DataFrame
+    # combined_forecasts = pd.concat(all_forecasts, ignore_index=True)
+    #
+    # # Save the combined forecasts to a CSV file
+    # combined_csv_path = os.path.join(project_path, predictions_path, 'retrained_combined_forecasts.csv')
+    # combined_forecasts.to_csv(combined_csv_path, index=False)
+    # print(f"Combined Forecast CSV saved to: {combined_csv_path}")
 
     # Delete the old target OpenSearch index
     # delete_open_search_index(target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password)
