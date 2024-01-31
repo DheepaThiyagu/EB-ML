@@ -3,7 +3,7 @@ from appp import save_csv,delete_open_search_index,bulk_save_training_index,elas
 
 import pandas as pd
 
-df = pd.read_csv('C:/Users/91701/EB_ML/training/output_selected_dataframe.csv')
+df = pd.read_csv('training/output_selected_dataframe.csv')
 
 print( df.head())
 df['fivemin_timestamp']=df['record_time']

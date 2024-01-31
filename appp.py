@@ -43,30 +43,33 @@ def index():
 
 project_path = os.getcwd()
 
-# Specify the relative path to your models directory
-models_path = 'models'
-predictions_path='predictions'
-training_path='training'
-retraining_path='retraining'
-
 # Load configuration from config.ini
 config = configparser.ConfigParser()
 config.read('config.ini')
+# Specify the relative path to your models directory
+
+
 
 elasticsearch_host = config.get('elasticsearch', 'host')
 elasticsearch_port = config.getint('elasticsearch', 'port')
 elk_username = config.get('elasticsearch', 'username')
 elk_password = config.get('elasticsearch', 'password')
 
+target_index = config.get('indices', 'target_index')
+training_index = config.get('indices', 'training_index')
+
+models_path = config.get('paths', 'models_path')
+predictions_path = config.get('paths', 'predictions_path')
+training_path = config.get('paths', 'training_path')
+retraining_path = config.get('paths', 'retraining_path')
 
 app_id="753"
 source_index='fivemins_wm_oseb1decv1_753'
 # target_index='predictions_9_jan_by_script'
-target_index='dheepa_csv_bulk'
-training_index='fivemins_753'
+
 
 def train_volume_model_with_grid_search(df,sid):
-    print(f"Training started for {sid}")
+    print(f"Training started for {sid} for  Request Volume")
     start_time = timer()
     try:
         tss = TimeSeriesSplit(n_splits=2)
@@ -142,17 +145,18 @@ def train_volume_model_with_grid_search(df,sid):
             # Append intervals to your lists
             req_vol_preds.append((req_vol_pred, req_vol_interval))
 
-            # Create a DataFrame to store predictions and intervals
-            predictions_df = pd.DataFrame({
-                'Datetime': X_test.index,
-                'Req_Vol_Pred': req_vol_pred,
-                'Req_Vol_Lower': req_vol_interval[0],
-                'Req_Vol_Upper': req_vol_interval[1],
-                'Req_Vol_Confidence_Score': req_vol_interval[2],
-            })
+            # # Create a DataFrame to store predictions and intervals
+            # predictions_df = pd.DataFrame({
+            #     'Datetime': X_test.index,
+            #     'Req_Vol_Pred': req_vol_pred,
+            #     'Req_Vol_Lower': req_vol_interval[0],
+            #     'Req_Vol_Upper': req_vol_interval[1],
+            #     'Req_Vol_Confidence_Score': req_vol_interval[2],
+            # })
+            #
+            # # Save the DataFrame to a CSV file
+            # predictions_df.to_csv('volume_predictions.csv', index=False)
 
-            # Save the DataFrame to a CSV file
-            predictions_df.to_csv('volume_predictions.csv', index=False)
             req_vol_rmse, req_vol_mae, req_vol_mape=evaluate_metrics(y_test_req_vol, req_vol_pred)
 
             rmses.append((req_vol_rmse,))
@@ -167,20 +171,22 @@ def train_volume_model_with_grid_search(df,sid):
 
         end_time = timer()
         training_time = end_time - start_time
-        print(f"Training completed for {sid} for Request Volume. Training time: {training_time} seconds.")
+        print(f"Training completed for {sid} for Request Volume. Training time: {training_time} seconds.\n\n\n")
 
         return reg_req_vol
 
 
     except ValueError as e:
         # Handle the exception (e.g., print a message)
-        print(f"Skipping service due to error: {e}")
+        print(f"Skipping service{sid} due to error: {e}")
 
         # Return the final model
     return None
 
 
 def train_response_time_model_with_grid_search(df,sid):
+    print(f"Training started for {sid} for Response Time")
+
     start_time = timer()
 
     try:
@@ -255,16 +261,16 @@ def train_response_time_model_with_grid_search(df,sid):
             resp_time_preds.append((resp_time_pred, resp_time_interval))
 
             # Create a DataFrame to store predictions and intervals
-            predictions_df = pd.DataFrame({
-                'Datetime': X_test.index,
-                'Resp_Time_Pred': resp_time_pred,
-                'Resp_Time_Lower': resp_time_interval[0],
-                'Resp_Time_Upper': resp_time_interval[1],
-                'Resp_Time_Confidence_Score': resp_time_interval[2],
-            })
+            # predictions_df = pd.DataFrame({
+            #     'Datetime': X_test.index,
+            #     'Resp_Time_Pred': resp_time_pred,
+            #     'Resp_Time_Lower': resp_time_interval[0],
+            #     'Resp_Time_Upper': resp_time_interval[1],
+            #     'Resp_Time_Confidence_Score': resp_time_interval[2],
+            # })
 
             # Save the DataFrame to a CSV file
-            predictions_df.to_csv('response_time_predictions.csv', index=False)
+            # predictions_df.to_csv('response_time_predictions.csv', index=False)
 
             resp_time_rmse, resp_time_mae, resp_time_mape=evaluate_metrics(y_test_resp_time, resp_time_pred)
             rmses.append((resp_time_rmse,))
@@ -289,12 +295,14 @@ def train_response_time_model_with_grid_search(df,sid):
 
     except ValueError as e:
         # Handle the exception (e.g., print a message)
-        print(f"Skipping service due to error: {e}")
+        print(f"Skipping service{sid} due to error: {e}")
 
     return None
 
 
 def train_error_count_model_with_grid_search(df,sid):
+    print(f"Training started for {sid} for  Error Count")
+
     start_time = timer()
     try:
         tss = TimeSeriesSplit(n_splits=2)
@@ -368,16 +376,16 @@ def train_error_count_model_with_grid_search(df,sid):
             err_cnt_preds.append((err_cnt_pred, err_cnt_interval))
 
             # Create a DataFrame to store predictions and intervals
-            predictions_df = pd.DataFrame({
-                'Datetime': X_test.index,
-                'Err_Cnt_Pred': err_cnt_pred,
-                'Err_Cnt_Lower': err_cnt_interval[0],
-                'Err_Cnt_Upper': err_cnt_interval[1],
-                'Err_Cnt_Confidence_Score': err_cnt_interval[2],
-            })
+            # predictions_df = pd.DataFrame({
+            #     'Datetime': X_test.index,
+            #     'Err_Cnt_Pred': err_cnt_pred,
+            #     'Err_Cnt_Lower': err_cnt_interval[0],
+            #     'Err_Cnt_Upper': err_cnt_interval[1],
+            #     'Err_Cnt_Confidence_Score': err_cnt_interval[2],
+            # })
 
             # Save the DataFrame to a CSV file
-            predictions_df.to_csv('error_count_predictions.csv', index=False)
+            # predictions_df.to_csv('error_count_predictions.csv', index=False)
 
             err_cnt_rmse, err_cnt_mae,err_cnt_mape = evaluate_metrics(y_test_err_cnt, err_cnt_pred)
 
@@ -401,7 +409,7 @@ def train_error_count_model_with_grid_search(df,sid):
 
     except ValueError as e:
         # Handle the exception (e.g., print a message)
-        print(f"Skipping service due to error: {e}")
+        print(f"Skipping service {sid} due to error: {e}")
 
         # Return the final model
     return None
@@ -473,7 +481,9 @@ def predict_future_dataset(app_id,sid,freq,start_date,end_date):
     # Convert app_id to a pandas Series
     app_id_series = pd.Series(app_id)
 
+    # future_w_features['datetime']=pd.to_datetime(future_w_features['datetime'],format="%Y-%m-%d %H:%M:%S")
     future_w_features['datetime']=future_w_features.index
+
     future_w_features['app_id']=app_id_series.iloc[0]
 
     future_w_features['sid']=sid
@@ -849,9 +859,10 @@ def update_unique_services(df):
 
     # Create a new DataFrame with sid and record_count
     df_unique_services = pd.DataFrame({'sid': unique_services, 'record_count': df['sid'].value_counts().values})
+    # df_unique_services = pd.DataFrame({'sid': unique_services})
 
     # Sort the DataFrame by record_count in descending order
-    df_unique_services = df_unique_services.sort_values(by='record_count', ascending=False)
+    df_unique_services = df_unique_services.sort_values(by='sid', ascending=True)
 
     # Display the head of the DataFrame
     print(df_unique_services.head())
@@ -1550,7 +1561,7 @@ def grid_search_retrain_model(model_req_vol, model_err_cnt, model_resp_time, df,
 
     # Set the index to the 'datetime' column
     #     df.set_index('datetime', inplace=True)
-    df=remove_outliers(df)
+    # df=remove_outliers(df)
     train,test,df=train_test_splitdata(df)
     # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -1787,6 +1798,7 @@ def retrain_and_predict_for_service(filtered_df, sid, model_type):
             raise ValueError(f"Invalid model_type: {model_type}")
 
 def retrain_request_volume_model(df,sid):
+    print(f"Retraining completed for {sid} for Request Volume")
     start_time = timer()
     try:
         tss = TimeSeriesSplit(n_splits=2)
@@ -1872,11 +1884,12 @@ def retrain_request_volume_model(df,sid):
 
     except ValueError as e:
         # Handle the exception (e.g., print a message)
-        print(f"Skipping service due to error: {e}")
+        print(f"Skipping service {sid} due to error: {e}")
 
 
     return None
 def retrain_response_time_model(df,sid):
+    print(f"Retraining completed for {sid} for REsponse Time")
     start_time = timer()
     try:
         tss = TimeSeriesSplit(n_splits=2)
@@ -1962,11 +1975,12 @@ def retrain_response_time_model(df,sid):
 
     except ValueError as e:
         # Handle the exception (e.g., print a message)
-        print(f"Skipping service due to error: {e}")
+        print(f"Skipping service {sid} due to error: {e}")
 
 
     return None
 def retrain_error_count_model(df,sid):
+    print(f"Retraining completed for {sid} for Error Count")
     start_time = timer()
     try:
         tss = TimeSeriesSplit(n_splits=2)
@@ -2052,12 +2066,57 @@ def retrain_error_count_model(df,sid):
 
     except ValueError as e:
         # Handle the exception (e.g., print a message)
-        print(f"Skipping service due to error: {e}")
+        print(f"Skipping service{sid} due to error: {e}")
 
 
     return None
 from concurrent.futures import ThreadPoolExecutor
 
+def pull_training_data(app_id,source_index):
+    # start_time_ms=1701408600000
+    # end_time_ms= 1701495000000
+
+    current_date=datetime.now()
+    # Set start time to 00:00 hour of the previous day
+    start_time = current_date - timedelta(days=9)
+    start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_time_ms = int(start_time.timestamp() * 1000)
+
+
+# Set end time to 23:59 of the previous day
+    end_time = datetime.now() - timedelta(days=1)
+    end_time = end_time.replace(hour=23, minute=59, second=59, microsecond=0)
+    end_time_ms = int(end_time.timestamp() * 1000)
+
+
+    start_time_ms=1706034600000 # REMOVE THIS
+    end_time_ms=1706045400000 # REMOVE THIS
+
+    df=connectelk_retrive_data(app_id,start_time_ms,end_time_ms,source_index)
+
+    csv_file_path = os.path.join(project_path, training_path, f'training_data.csv')
+    df = pd.read_csv(csv_file_path)
+    df.to_csv(csv_file_path, index=False)
+    print(f"Tranining DataFrame saved to: {csv_file_path}")
+
+    return df
+
+def get_pred_date():
+    current_date=datetime.now()
+    days = int(config['prediction']['days'])
+
+
+    # Calculate the prediction start date (10 days ahead)
+    prediction_start_date = current_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    prediction_end_date = prediction_start_date + timedelta(days=days) - timedelta(seconds=1)
+
+    # Convert the dates to strings
+    pred_start_date = prediction_start_date.strftime('%Y-%m-%d %H:%M:%S')
+    pred_end_date = prediction_end_date.strftime('%Y-%m-%d %H:%M:%S')
+
+    print("Prediction Start Date:", pred_start_date)
+    print("Prediction End Date:", pred_end_date)
+    return pred_start_date,pred_end_date
 @appp.route('/train')
 def train():
     st_time = timer()
@@ -2067,22 +2126,25 @@ def train():
     color_pal = sns.color_palette()
     plt.style.use('fivethirtyeight')
 
-    # start_time=1701408600000
-    # end_time= 1701495000000
-    # df=connectelk_retrive_data(app_id,start_time,end_time,source_index)
+
+    # df=pull_training_data()
 
     csv_file_path = os.path.join(project_path, training_path, 'output_selected_dataframe.csv')
+    # csv_file_path = os.path.join(project_path, '..', 'EB_ML', 'training', 'output_selected_dataframe.csv')
+
     df = pd.read_csv(csv_file_path)
 
     logging.info(df.head())
 
     df_all_services, df_corr_vol_err, df_corr_vol_resp = list_services_training(df)
 
-    # df_all_services = df_all_services['sid'].tolist()[:10]
-    df_all_services = [1007, 1008, 1021, 1034]
+    df_all_services = df_all_services['sid'].tolist()[:20]
+    print('df_All_services in training', df_all_services)
+
+    # df_all_services = [1007, 1008, 1021, 1034]
     df_corr_vol_err = df_corr_vol_err['sid'].tolist()
     df_corr_vol_resp = df_corr_vol_resp['sid'].tolist()
-    print('vol and err correlation list', df_corr_vol_err)
+    print('vol and err correlation list in training', df_corr_vol_err)
 
     # Step 1: Model Training
     def train_models(sid):
@@ -2110,17 +2172,24 @@ def train():
 
     def predict(sid):
         try:
-            pred_start_date = '2023-12-01 12:00:00'
-            pred_end_date = '2023-12-02 12:00:00'
+
+            # pred_start_date,pred_end_date= get_pred_date()
+            pred_start_date='2023-12-05 00:00:00'
+            pred_end_date='2023-12-07 23:59:59'
+
+
             freq = '5T'
 
             forecast = predict_future_dataset(app_id, sid, freq, pred_start_date, pred_end_date)
-            print("saving to csv")
+
             csv_file_path = os.path.join(project_path, predictions_path, f'{sid}_predicted.csv')
             forecast.to_csv(csv_file_path, index=False)
             print(f"Prediction DataFrame saved to: {csv_file_path}")
-            bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password)
+
+            # bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password)
+
             all_forecasts.append(forecast)
+
         except Exception as e:
             print(f"An exception occurred during prediction for service {sid}: {e}")
 
@@ -2143,30 +2212,61 @@ def train():
 
     return jsonify(response_data)
 
+def get_retraining_start_end_time():
+    current_date=datetime.now()
+    # Set start time to 00:00 hour of the previous day
+    start_time = current_date - timedelta(days=1)
+    start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Set end time to 23:59 of the previous day
+    end_time = current_date - timedelta(days=1)
+    end_time = end_time.replace(hour=23, minute=59, second=59, microsecond=0)
+
+    current_timestamp_ms = int(current_date.timestamp() * 1000)
+
+    start_time_ms = int(start_time.timestamp() * 1000)
+    end_time_ms = int(end_time.timestamp() * 1000)
+
+    print("Current time:", current_timestamp_ms)
+    print("Start time:", start_time_ms)
+    print("End time:", end_time_ms)
+
+    return start_time,end_time
 
 @appp.route('/retrain')
-def retrain():
+
+def retrain(app):
+    logging.info(f"using applicationid:{app.id}")
     st_time=timer()
     # To ignore specific warnings
     warnings.filterwarnings("ignore", category=FutureWarning)
 
     color_pal = sns.color_palette()
     plt.style.use('fivethirtyeight')
-    app_id="753"
+    app_id=app.id
+    # app_id='753'
+    source_index = 'fivemins_{}'.format(app.index_id)
+    # source_index= 'fivemins_wm_oseb1decv1_753'
 
-    # date=datetime.now() - timedelta(days=1)
-    # start_time = date.timestamp() * 1000  # Convert to milliseconds
-    # # end_time = (date + timedelta(days=1)).timestamp() * 1000
-    # end_time= datetime.now().timestamp() * 1000
+    print(app_id,source_index)
 
+    # csv_file_path = os.path.join(project_path, training_path, 'output_selected_dataframe.csv')
+    #
+    # df_train_data = pd.read_csv(csv_file_path)
+    df_train_data = pull_training_data(app_id, source_index) # fetch 90 days data
+
+
+    #
     # start_time= 1701648000000 # Dec 4,2023 12 am
     # end_time=1701734400000 #Dec 5,2023 12 am
-    # print(start_time)
-    # print(end_time)
-    # df = connectelk_retrive_data(app_id, start_time, end_time,source_index)
+    #
 
-    csv_file_path = os.path.join(project_path, retraining_path, 'retraining_data.csv')
-    df = pd.read_csv(csv_file_path)
+    # fetch Retrain data last 1 day
+    start_time,end_time=get_retraining_start_end_time()
+    df = connectelk_retrive_data(app_id, start_time, end_time,source_index) # fetch last 1 day
+
+    # csv_file_path = os.path.join(project_path, retraining_path, 'retraining_data.csv')
+    # df = pd.read_csv(csv_file_path)
 
     if df is not None:
         df['fivemin_timestamp']=df['record_time']
@@ -2181,13 +2281,22 @@ def retrain():
         print(df.head())
 
         logging.info(df.head())
-        df_all_services,df_corr_vol_err,df_corr_vol_resp=list_services_retraining(df)
-        df_all_services=[1007,1008,1021,1034]
+
+        df_all_services, df_corr_vol_err, df_corr_vol_resp = list_services_training(df)
+
+        df_all_services = df_all_services['sid'].tolist()[:20]
+        print('df_All_services in retraining', df_all_services)
+
+        # df_all_services = [1007, 1008, 1021, 1034]
         df_corr_vol_err = df_corr_vol_err['sid'].tolist()
         df_corr_vol_resp = df_corr_vol_resp['sid'].tolist()
-        print('vol and err correlation list', df_corr_vol_err)
+        print('vol and err correlation list in retraining', df_corr_vol_err)
 
+
+
+        # Step 1: Model Retraining
         def retrain_model_for_service(sid):
+
             try:
                 df_service  =filter_service_by_sid( df,sid)
 
@@ -2201,14 +2310,10 @@ def retrain():
                             df_err=remove_err_outliers(df_service)
                             err_model = retrain_and_predict_for_service(df_err, sid, 'err')
                         else:
-                            # date=datetime.now() - timedelta(days=1)
-                            # start_time = date.timestamp() * 1000  # Convert to milliseconds
-                            # # start_time = 1701282600000  # start time of the training data
-                            # end_time = datetime.now().timestamp() * 1000
-                            # df = connectelk_retrive_data(app_id, start_time, end_time,training_index)
-                            df_service  =filter_service_by_sid(df,sid)
+
+                            df_service  =filter_service_by_sid(df_train_data,sid)
                             df_err=remove_err_outliers(df_service)
-                            print(f"No existing error Model for {sid} to retrain .so training the model  ")
+                            print(f"No existing Error count Model for {sid} to retrain .So training the model for Error Count ")
                             train_and_predict_for_service(df_err, sid, 'err')
 
                     if sid in df_corr_vol_resp:
@@ -2218,12 +2323,9 @@ def retrain():
                             # Train and predict for response time
                             resp_model = retrain_and_predict_for_service(df_resp, sid, 'resp')
                         else:
-                            # start_time = 1701282600000  # start time of the training data
-                            # end_time = datetime.now().timestamp() * 1000
-                            # df = connectelk_retrive_data(app_id, start_time, end_time,training_index)
-                            df_service  =filter_service_by_sid(df,sid)
+                            df_service  =filter_service_by_sid(df_train_data,sid)
                             df_resp=remove_resp_outliers(df_service)
-                            print(f"No existing REsponse Model for {sid} to retrain .so training the model  ")
+                            print(f"No existing Response Time Model for {sid} to retrain .So training the model for Response time  ")
 
                             train_and_predict_for_service(df_resp, sid, 'resp')
 
@@ -2232,8 +2334,9 @@ def retrain():
                         df_vol=remove_vol_outliers(df_service)
                         vol_model = retrain_and_predict_for_service(df_vol, sid, 'vol')
                     else:
+                        df_service  =filter_service_by_sid(df_train_data,sid)
                         df_vol=remove_vol_outliers(df_service)
-                        print(f"No existing Volume Model for {sid} to retrain .so training the model  ")
+                        print(f"No existing Volume Model for {sid} to retrain .so Training the model for Volume  ")
 
                         train_and_predict_for_service(df_vol, sid, 'vol')
 
@@ -2244,49 +2347,108 @@ def retrain():
     else:
         print(f"No records found for  retraining model")
 
+    # Step 2: Prediction
     all_forecasts = []
+    # # Delete the old target OpenSearch index
+    # delete_open_search_index(target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password)
+
     def predict(sid):
         try:
-            pred_start_date='2023-12-05 12:00:00'
-            pred_end_date='2023-12-06 12:00:00'
+
+            # pred_start_date,pred_end_date= get_pred_date()
+
+            pred_start_date='2023-12-05 00:00:00'
+            pred_end_date='2023-12-07 23:59:59'
+
             freq='5T'
+
+
             forecast=predict_future_dataset(app_id,sid,freq,pred_start_date,pred_end_date)
+
+            all_forecasts.append(forecast)
+
             csv_file_path = os.path.join(project_path, predictions_path,f'{sid}_predicted.csv')  # Provide the desired file path
             forecast.to_csv(csv_file_path, index=False)
             print(f"Prediction DataFrame saved to: {csv_file_path}")
-            # # Delete the old target OpenSearch index
-            # delete_open_search_index(target_index, elasticsearch_host, elasticsearch_port, elk_username, elk_password)
+
+
             # # save_forecast_index(forecast,target_index)
+
             # bulk_save_forecast_index(forecast, target_index, elasticsearch_host, elasticsearch_port, elk_username,elk_password)
-            # Assuming 'Datetime' column in the forecast DataFrame represents timestamps
-            forecast['Datetime'] = pd.to_datetime(forecast['Datetime'])
-            # tomorrow_date = datetime.now() + timedelta(days=1)
-            tomorrow_date='2023-12-05 12:00:00'
-            tomorrow_predictions = forecast[forecast['Datetime'].dt.date == tomorrow_date.date()]
 
-            # Concatenate 'df' and 'tomorrow_predictions' along the rows
-            combined_df = pd.concat([df, tomorrow_predictions], ignore_index=True)
+            print(f"retrieving tomorrow data for {sid}")
 
-            # Specify the CSV file path for the combined data
-            combined_csv_file_path = os.path.join(project_path, predictions_path, 'training_day_pred.csv')
+            # print(f"Type of forecast['datetime'] column: {type(forecast['datetime'])}")
 
-            # Save the combined DataFrame to the CSV file with a date index
-            combined_df.to_csv(combined_csv_file_path, index=True)
-            print(f"Combined Data Saved to: {combined_csv_file_path}")
+            # Convert the string to a datetime object
+            pred_start_date = datetime.strptime(pred_start_date, '%Y-%m-%d %H:%M:%S')
+            # print(f"Type of pred_start_date: {type(pred_start_date)}")
+
+            # Now try to retrieve tomorrow's predictions
+            try:
+                # Convert the 'datetime' column to dates
+                forecast['date'] = forecast['datetime'].dt.date
+
+                # Convert the pred_start_date to a date
+                pred_start_date = pred_start_date.date()
+
+                # Filter the DataFrame for tomorrow's predictions
+                tomorrow_predictions = forecast[forecast['date'] == pred_start_date]
+
+                print(f"Tomorrow's predictions: {tomorrow_predictions}")
+            except Exception as e:
+                print(f"An exception occurred during prediction for service {sid}: {e}")
+
+
 
             # Specify the CSV file path for tomorrow's predictions
             csv_file_path_tomorrow = os.path.join(project_path, predictions_path, 'tomorrow_predictions.csv')
-
             # Append tomorrow's predictions to the CSV file
             tomorrow_predictions.to_csv(csv_file_path_tomorrow, mode='a', header=not os.path.exists(csv_file_path_tomorrow), index=False)
             print(f"Tomorrow's Predictions Appended to: {csv_file_path_tomorrow}")
 
-            all_forecasts.append(forecast)
+
+
+            # Concatenate df and tomorrow_predictions along the rows without preserving the index
+            combined_df = pd.concat([df, tomorrow_predictions], ignore_index=True)
+
+            # Save the combined DataFrame to the CSV file with a date index
+            combined_csv_file_path = os.path.join(project_path, predictions_path, 'training_day_pred.csv')
+            combined_df.to_csv(combined_csv_file_path, index=False)
+            print(f"Combined Data Saved to: {combined_csv_file_path}")
+
+            #
+            # # Read the CSV file into a DataFrame
+            # combined_df = pd.read_csv(combined_csv_file_path)
+            #
+            # print(f"df+predictions: {combined_df}")
+
+# Reset the index of df and tomorrow_predictions
+#             df.reset_index(drop=True)
+#             tomorrow_predictions.reset_index(drop=True)
+#
+#
+#             # Concatenate 'df' and 'tomorrow_predictions' along the rows
+#             combined_df = pd.concat([df, tomorrow_predictions], ignore_index=True)
+#
+#             # Drop the index column from the DataFrame
+#             print(f"df+predictions: {combined_df}")
+#             # Specify the CSV file path for the combined data
+#             combined_csv_file_path = os.path.join(project_path, predictions_path, 'training_day_pred.csv')
+#
+#             # Save the combined DataFrame to the CSV file with a date index
+#             combined_df.to_csv(combined_csv_file_path, index=False)
+#             print(f"Combined Data Saved to: {combined_csv_file_path}")
+#
+
+
+
+
         except Exception as e:
             print(f"An exception occurred during prediction for service {sid}: {e}")
 
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor() as executor:
         executor.map(predict, df_all_services)
 
     total_execution_time = timer() - st_time

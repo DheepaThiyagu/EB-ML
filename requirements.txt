@@ -15,3 +15,7 @@ plotly
 seaborn
 matplotlib
 ydata-profiling
+psycopg2-binary
+config
+APScheduler
+Flask-SQLAlchemy

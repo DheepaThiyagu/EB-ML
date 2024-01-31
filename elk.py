@@ -30,7 +30,7 @@ project_path = os.getcwd()
 # Specify the relative path to your models directory
 models_path = 'models'
 predictions_path='predictions'
-training_path='training'
+training_path= 'training'
 retraining_path='retraining'
 
 
