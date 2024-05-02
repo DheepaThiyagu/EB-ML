@@ -5,10 +5,9 @@ from appp import project_path,training_path
 import os
 # Assuming your DataFrame is 'df' with a column 'error_count'
 # You may need to replace 'error_count' with the actual column name in your DataFrame
-csv_file_path = os.path.join(project_path, training_path,'1008_train.csv')
-# csv_file_path = os.path.join(project_path, predictions_path,'1007_predicted.csv')
+file_path = r'C:\Users\91701\EB_ML\training_data.csv'
+df= pd.read_csv(file_path)
 
-df = pd.read_csv(csv_file_path)
 # Train the Isolation Forest model
 model = IsolationForest(contamination=0.1)  # Contamination is the expected proportion of anomalies
 model.fit(df[['error_count']])

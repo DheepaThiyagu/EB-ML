@@ -1,0 +1,18 @@
+sid,true_volume,breach_volume
+16994,601,601
+17000,1,2
+24457,150,150
+24461,,
+24476,16,16
+24500,138,138
+24511,15,15
+24525,604,604
+24535,1,1
+24540,,
+24545,1,1
+,,
+,,
+Mean Absolute Error (MAE): 0.1111,,
+Mean Squared Error (MSE): 0.1111,,
+R-squared (R2) Score: 1.0000,,
+Root Mean Squared Error (RMSE): 0.33,,
